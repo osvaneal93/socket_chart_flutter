@@ -1,5 +1,5 @@
 class SignatureModel {
-  final int id;
+  final String id;
   final String name;
   final int counter;
 

@@ -1,50 +1,124 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:pie_chart/pie_chart.dart';
+import 'package:provider/provider.dart';
+import 'package:socket_chart/core/services/socket_service.dart';
 import 'package:socket_chart/data/models/signature_model.dart';
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class MyHomeView extends StatefulWidget {
+  const MyHomeView({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomeView> createState() => _MyHomeViewState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final List<SignatureModel> model = [
-    SignatureModel(id: 1, name: 'Quimica', counter: 5),
-    SignatureModel(id: 2, name: 'Fisica', counter: 9),
-    SignatureModel(id: 3, name: 'Biologia', counter: 12),
-    SignatureModel(id: 4, name: 'Matematicas', counter: 15)
+class _MyHomeViewState extends State<MyHomeView> {
+  List<SignatureModel> model = [];
+  List<SignatureModel> models = [
+    SignatureModel(id: '456789', name: 'HOLIS', counter: 3),
+    SignatureModel(id: '456789', name: 'HOLIS', counter: 3),
+    SignatureModel(id: '456789', name: 'HOLIS', counter: 3),
+    SignatureModel(id: '456789', name: 'HOLIS', counter: 3),
   ];
+
+  final GlobalKey dissmisible = GlobalKey();
+  @override
+  void initState() {
+    final socketService = Provider.of<SocketService>(context, listen: false);
+    Future.delayed(Duration(seconds: 2));
+    socketService.socket.on('item-request', (data) async {
+      model =
+          await (data as List).map((e) => SignatureModel.fromMap(e)).toList();
+      print('MODELS: ${model.length}');
+      setState(() {});
+    });
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: ListView.builder(
-          itemBuilder: (context, index) => listTileItem(model[index]),
-          itemCount: model.length,
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: showAddDialog,
-          child: const Icon(Icons.add),
-        ),
-      ),
+    return Consumer<SocketService>(
+      builder: (_, socketService, __) {
+        return MaterialApp(
+          home: Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'Chart Sockets',
+                style: TextStyle(color: Colors.amber.shade900),
+              ),
+              backgroundColor: Colors.white,
+              actions: [
+                if (socketService.serverStatus == ServerStatus.online)
+                  const Center(
+                    child: Text(
+                      'Connected',
+                      style: TextStyle(
+                          color: Colors.green, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                if (socketService.serverStatus == ServerStatus.offline)
+                  const Center(
+                    child: Text(
+                      'Offline',
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                const SizedBox(
+                  width: 25,
+                )
+              ],
+            ),
+            body: Column(
+              children: [
+                _buildChart(),
+                Center(
+                  child: Text(model.length.toString()),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemBuilder: (context, index) => listTileItem(model[index]),
+                    itemCount: model.length,
+                  ),
+                ),
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: showAddDialog,
+              child: const Icon(Icons.add),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  ListTile listTileItem(SignatureModel model) => ListTile(
-        title: Text(model.name),
-        leading: CircleAvatar(
-          backgroundColor: Colors.amber.withOpacity(.6),
-          child: Text(
-            model.id.toString(),
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
+  Widget listTileItem(SignatureModel model) => Consumer<SocketService>(
+        builder: (_, socketService, __) => Dismissible(
+          key: UniqueKey(),
+          onDismissed: (direction) {
+            socketService.socket.emit('delete-item', {'idItem': model.id});
+          },
+          child: InkWell(
+            onTap: () {
+              socketService.socket.emit('plus-item', {'idItem': model.id});
+            },
+            child: ListTile(
+              title: Text(model.name),
+              leading: CircleAvatar(
+                backgroundColor: Colors.amber.withOpacity(.6),
+                child: Text(
+                  model.name.substring(0, 2),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+              trailing: Text(model.counter.toString(),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ),
         ),
-        trailing: Text(model.counter.toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold)),
       );
 
   showAddDialog() {
@@ -57,14 +131,17 @@ class _MyHomePageState extends State<MyHomePage> {
           return AlertDialog(
             title: const Text('Add Signature'),
             actions: [
-              MaterialButton(
-                onPressed: () {
-                  addToList(signatureController);
-                  Navigator.pop(context);
-                },
-                color: Colors.amber,
-                elevation: 0,
-                child: const Text('Agregar'),
+              Consumer<SocketService>(
+                builder: (_, socketService, __) => MaterialButton(
+                  onPressed: () {
+                    socketService.socket
+                        .emit('add-item', {'name': signatureController.text});
+                    Navigator.pop(context);
+                  },
+                  color: Colors.amber,
+                  elevation: 0,
+                  child: const Text('Agregar'),
+                ),
               ),
               MaterialButton(
                 onPressed: () {
@@ -86,14 +163,17 @@ class _MyHomePageState extends State<MyHomePage> {
         });
   }
 
-  void addToList(TextEditingController controller) {
-    Random random = Random();
-    model.add(
-      SignatureModel(
-        id: model.length + 1,
-        name: controller.text,
-        counter: random.nextInt(15),
-      ),
+  _buildChart() {
+    Map<String, double> dataMap = Map();
+
+    model.forEach((element) {
+      dataMap.putIfAbsent(element.name, () => element.counter.toDouble());
+    });
+
+    return SizedBox(
+      height: 250,
+      width: double.infinity,
+      child: PieChart(dataMap: dataMap),
     );
   }
 }
