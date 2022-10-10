@@ -1,16 +1,6 @@
-# socket_chart
 
-A new Flutter project.
+<h3>This proyect use Socket.io to update the chart in realtime, in this case, school's chart, the mobile frontend is in dart/flutter, and have a little backend in nodeJS to the sockets control.</h3>
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+<br> <img height= "450"  src= "https://github.com/osvaneal93/socket_chart_flutter/blob/main/screenshots/Screenshot_1665423384.png"/> <br>
+ <h3> when the sockets lost the conection, the message in frontend is instant</h3>
+<br> <img height= "300"  src= "https://github.com/osvaneal93/socket_chart_flutter/blob/main/screenshots/offline.jpg"/> <br>
